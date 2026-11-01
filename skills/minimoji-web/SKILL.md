@@ -530,6 +530,70 @@ export function DashSaysHey() {
   there it is only lag. It adds to `playoutOffset`. Without it a closure
   shows as the voice comes back; a fading vowel never shuts the mouth.
 
+### Mouthing a streaming reply (no audio)
+
+An agent's reply that arrives as silent text: the head mouths the words as
+they stream in, paced like speech. Not `useLine`: a line is a finished clip
+with a duration, and a stream has neither. No key and no network.
+
+```tsx
+'use client';
+import { useRef, useState } from 'react';
+import { MinimojiStage, MinimojiHead, useTextMouth } from '@minimoji/react';
+
+export function AgentReply({ stream }: { stream: () => AsyncIterable<string> }) {
+  const anchor = useRef<HTMLDivElement>(null);
+  const mouth = useTextMouth();
+  const [text, setText] = useState('');
+
+  const run = async () => {
+    mouth.cancel(); setText('');
+    for await (const token of stream()) { mouth.append(token); setText(t => t + token); }
+    mouth.finish();
+  };
+
+  return (
+    <>
+      <button type="button" onClick={run}>Ask</button>
+      <div ref={anchor} data-minimoji="loading" style={{ position: 'relative', width: 54, height: 54 }} />
+      <p>{text}</p>
+      <MinimojiStage>
+        <MinimojiHead avatar={{}} character={{ id: 'agent' }} anchor={anchor} expression="happy"
+          performance={mouth.speaking ? mouth.performance : null} />
+      </MinimojiStage>
+    </>
+  );
+}
+```
+
+- **The pace is the hook's.** About 15 characters a second; more than 1.5 s
+  behind the text it eases up to 1.5x, more than 4 s behind it skips forward, at
+  a word boundary where there is one. So a long reply never leaves the mouth talking long after
+  the text has landed. After `finish()` the same rules run, then the mouth
+  closes; `cancel()` closes it at once. Text after that starts a new reply.
+- **Tokens can split anything:** a word, a two-letter rule, an emoji. Hand them
+  over as they come; the last letter of a chunk waits for the next one.
+- **Send what you want mouthed.** It does not strip markdown or code: symbols
+  take no time, but `const x = 1` is mouthed as text. Filter first.
+- **Faces stay yours:** `expression` and `listening` compose with it as with a
+  line, and the mood holds through the talking. Choose the mood yourself; it
+  reads none from the text.
+- **Gaze and blinks:** it hands over a mouth and its loudness, no
+  look and no blink events. While
+  `performance` is set the `look` prop is not read and the head glances about
+  on its own (as during a line), and its own blinks go on. Pass
+  `mouth.speaking ? mouth.performance : null`, as above, so `look` is back the
+  moment it stops.
+- **Reduced motion** is a line's rule: the mouth still moves (it is direct
+  feedback), the head's natural motion and the stickers stop. Add no check.
+- **A caption that keeps up:** `useTextMouth({ onSpoken: n => setShown(text.slice(0, n)) })`,
+  or read `mouth.spoken()`. The count jumps forward over a skip.
+- **Your own frame loop:** `createTextMouth()` from `@minimoji/react`
+  (`append`, `finish`, `cancel`, `sample(dt)`). With no React, on the vanilla bundle:
+  `const reply = stage.speak('Hel'); reply.append('lo!'); reply.finish();`
+  (`reply.cancel()`, `reply.spoken`, `reply.speaking`, and `stage.speak(text, id)`
+  for a tile). The stage draws its own frames when you draw none.
+
 ### Emotes with speech
 
 Two ways, pick one per head:

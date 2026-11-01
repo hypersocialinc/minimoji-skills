@@ -431,6 +431,51 @@ func performanceSnapshot(at hostTime: TimeInterval) -> AvatarPerformanceSnapshot
   per change and is never replayed after a stop; a drop needs the view's
   `listening:` set, or it does nothing.
 
+### Mouth a streaming reply (`TextMouth`, no audio)
+
+An agent's reply that arrives as silent text: the head mouths the words as they
+stream in, paced like speech. Not a `SpeechLine`: a line is a finished clip with
+a duration, and a stream has neither. On the device, with no key and no network.
+
+```swift
+import MinimojiLive
+import MinimojiMetal
+
+let reply = TextMouthSource()        // one per head, kept
+
+for try await token in stream { reply.append(token) }
+reply.finish()
+
+// the head: `reply` is an AvatarPerformanceInput. The head's player holds it weakly, so keep it
+MinimojiMetalHeadView(document: head, expression: "happy", performance: reply)
+```
+
+Or hold the pacer yourself, on your own frame step (`var mouth = TextMouth()`, with `import MinimojiKit` for the snapshot):
+`if let m = mouth.sample(dt: dt) { AvatarPerformanceSnapshot(mouth: m.mouth, voiceLevel: m.level) }`.
+
+- **The pace is its own.** About 15 characters a second; more than 1.5 s behind
+  the text it eases up to 1.5x, more than 4 s behind it skips forward, at a word
+  boundary where there is one. After `finish()` the same rules run, then the mouth closes (`sample`
+  is nil, the snapshot inactive); `cancel()` closes it at once. Text after that
+  starts a new reply. Do not pass `talking: true`: the source feeds the mouth,
+  and when it stops the mouth should rest, not take up the head's own talk jaw.
+  Its clock is the head reading it, so with no head on screen it does not run.
+- **Tokens can split anything:** a word or a two-letter rule. The last letter of
+  a chunk waits for the next one.
+- **Send what you want mouthed.** It does not strip markdown or code; symbols
+  take no time. Filter first.
+- **Faces stay yours:** `expression` and `listening` compose with it as with a
+  line. It reads no mood from the text. It hands over a mouth and its loudness and no
+  look, so the head's own blinks go on and it glances about on its own. `look:` and
+  `mouth:` are ignored while a source is installed, even an idle one (`isSpeaking`
+  is not observable): to get `look:` back, pass `performance: nil` when your
+  stream is done and the mouth has closed.
+- **Reduce Motion** is a line's rule: the mouth still moves, the head's natural
+  motion stops. Add no check of your own.
+- **A caption that keeps up:** `spoken` counts Unicode scalars, so
+  `String(String.UnicodeScalarView(text.unicodeScalars.prefix(reply.spoken)))`.
+  It jumps forward over a skip. Nothing in `MinimojiCaptions` follows it.
+
 ### Say a line: one call (`MinimojiLinePlayer`)
 
 **Hand the player the audio.** `host.say(audioFile: url, transcript: …)`
