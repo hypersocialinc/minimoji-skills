@@ -728,6 +728,16 @@ export function Reacting({ avatar }: { avatar: AvatarInput }) {
   `useLine` lines pop them at each cue. The PNGs load from
   `https://www.minimoji.com/emote-bursts/` (allow it in `img-src`), or
   `<MinimojiStage burstBase="/your/copy/">`.
+- **D.A.S.H.'s screen** shows the mood on the whole glass (the LEDs, their
+  glow and the glass take the mood's colour: pink for happy, red for angry,
+  blue for sad; neutral is the theme's own), and its eyes change shape for
+  `sad`/`crying`/`worried` (a drooping arc), `angry`/`furious` (a slash) and
+  `surprised`/`scared` (a wide ring). Nothing to wire: `expression` drives it.
+  Its **CRT look** (scanlines and glass brightness that follow the mood) is
+  `crt`: `0` off, `1` (the default), `2` loud. `crt={0}` for a flat screen;
+  reduced motion keeps the scanlines dark. A head of skin ignores it. On the
+  vanilla bundle: `mountHeadPerformance(el, { crt: 0 })`; on a runtime,
+  `life.setScreenCrt(level)`.
 - `cue={{ gesture }}` plays one named track over the face as it is (the
   face never changes): `double-take`, `head-shake`, `sunny-nod`,
   `knowing-nod`, `ponder-tilt`, `side-eye-hmm`, `lightbulb`, … (the

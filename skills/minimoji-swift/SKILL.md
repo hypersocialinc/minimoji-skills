@@ -340,6 +340,14 @@ cue = HeadCue(.forMood("laugh"), generation: cues)       // one of laugh's three
   plays no emote of its own (and does not cut your cue short), cues still
   play. Do not pass `performances: false` for that: it silences cues too.
   `bursts: false` drops only the stickers that pop on a mood change.
+- D.A.S.H.'s screen shows the mood on the whole glass (LEDs, glow and glass
+  in the mood's colour; neutral is the theme's own) and its eyes change shape
+  for sad, angry and surprised/scared: `expression` drives it, nothing to wire.
+  Its CRT look (scanlines and glass brightness following the mood) is
+  `crt:` on `MinimojiMetalHeadView` (and its `linePlayer:` init): `0` off,
+  `1` (the default), `2` loud. Reduce Motion keeps the scanlines dark. A
+  head of skin ignores it. On a `FaceLife` you drive yourself:
+  `setScreenCrt(_:)`.
 - Over a host's beat (a `performance:` source with `beat`), a cue rides over
   the nod and the nod keeps the beat. A singing app leaves `performances`
   on, passes `emotes: false`, and cues a nod or a double take on its moments.
