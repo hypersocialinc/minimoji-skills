@@ -566,11 +566,19 @@ export function AgentReply({ stream }: { stream: () => AsyncIterable<string> }) 
 }
 ```
 
-- **The pace is the hook's.** About 15 characters a second; more than 1.5 s
-  behind the text it eases up to 1.5x, more than 4 s behind it skips forward, at
-  a word boundary where there is one. So a long reply never leaves the mouth talking long after
-  the text has landed. After `finish()` the same rules run, then the mouth
-  closes; `cancel()` closes it at once. Text after that starts a new reply.
+- **The pace is the hook's.** About 15 characters a second, up to 1.5x when
+  behind. More than `lag` behind the newest text it skips forward, at a word
+  boundary where there is one, to about 3/4 of `lag` behind; the last phrase is
+  still mouthed. So a long reply never leaves the mouth talking long after the
+  text has landed. After `finish()` the same rules run, then the mouth closes;
+  `cancel()` closes it at once. Text after that starts a new reply.
+- **`lag` is your call:** `useTextMouth({ lag: 1 })`, in seconds, default 1.5
+  (sized for a chat reply streaming at 10+ words a second: the mouth stays
+  within a phrase of the text and runs on about a second after it ends). It
+  trades closeness for letters: a smaller lag follows the text closer and skips
+  more of it; a larger one mouths more and trails further. It hurries from 3/8
+  of it. A change takes hold at the next reply; a non-positive or non-finite
+  value throws.
 - **Tokens can split anything:** a word, a two-letter rule, an emoji. Hand them
   over as they come; the last letter of a chunk waits for the next one.
 - **Send what you want mouthed.** It does not strip markdown or code: symbols
@@ -578,21 +586,24 @@ export function AgentReply({ stream }: { stream: () => AsyncIterable<string> }) 
 - **Faces stay yours:** `expression` and `listening` compose with it as with a
   line, and the mood holds through the talking. Choose the mood yourself; it
   reads none from the text.
-- **Gaze and blinks:** it hands over a mouth and its loudness, no
-  look and no blink events. While
-  `performance` is set the `look` prop is not read and the head glances about
-  on its own (as during a line), and its own blinks go on. Pass
+- **Gaze and blinks:** it hands over a mouth and its loudness, and no blink
+  events. While `performance` is set the `look` prop is not read: the head
+  glances about on its own (as during a line), or, with
+  `useTextMouth({ look: { x, y } })` (-1..1, + x to the head's right, + y up),
+  looks where you say while it speaks. Its own blinks go on. Pass
   `mouth.speaking ? mouth.performance : null`, as above, so `look` is back the
   moment it stops.
 - **Reduced motion** is a line's rule: the mouth still moves (it is direct
   feedback), the head's natural motion and the stickers stop. Add no check.
 - **A caption that keeps up:** `useTextMouth({ onSpoken: n => setShown(text.slice(0, n)) })`,
   or read `mouth.spoken()`. The count jumps forward over a skip.
-- **Your own frame loop:** `createTextMouth()` from `@minimoji/react`
+- **Your own frame loop:** `createTextMouth({ lag })` from `@minimoji/react`
   (`append`, `finish`, `cancel`, `sample(dt)`). With no React, on the vanilla bundle:
   `const reply = stage.speak('Hel'); reply.append('lo!'); reply.finish();`
-  (`reply.cancel()`, `reply.spoken`, `reply.speaking`, and `stage.speak(text, id)`
-  for a tile). The stage draws its own frames when you draw none.
+  (`reply.cancel()`, `reply.spoken`, `reply.speaking`, `stage.speak(text, id)`
+  for a tile, and `stage.speak(text, id, { lag })`: the head keeps that lag
+  until another `speak` names one, and a reply already playing keeps its own).
+  The stage draws its own frames when you draw none.
 
 ### Emotes with speech
 

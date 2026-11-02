@@ -441,7 +441,7 @@ a duration, and a stream has neither. On the device, with no key and no network.
 import MinimojiLive
 import MinimojiMetal
 
-let reply = TextMouthSource()        // one per head, kept
+let reply = TextMouthSource()        // one per head, kept; TextMouthSource(lag: 1) to trail the text less
 
 for try await token in stream { reply.append(token) }
 reply.finish()
@@ -450,26 +450,35 @@ reply.finish()
 MinimojiMetalHeadView(document: head, expression: "happy", performance: reply)
 ```
 
-Or hold the pacer yourself, on your own frame step (`var mouth = TextMouth()`, with `import MinimojiKit` for the snapshot):
+Or hold the pacer yourself, on your own frame step (`var mouth = TextMouth()`, or `TextMouth(lag:)`, with `import MinimojiKit` for the snapshot):
 `if let m = mouth.sample(dt: dt) { AvatarPerformanceSnapshot(mouth: m.mouth, voiceLevel: m.level) }`.
 
-- **The pace is its own.** About 15 characters a second; more than 1.5 s behind
-  the text it eases up to 1.5x, more than 4 s behind it skips forward, at a word
-  boundary where there is one. After `finish()` the same rules run, then the mouth closes (`sample`
+- **The pace is its own.** About 15 characters a second, up to 1.5x when
+  behind. More than `lag` behind the newest text it skips forward, at a word
+  boundary where there is one, to about 3/4 of `lag` behind; the last phrase is
+  still mouthed. After `finish()` the same rules run, then the mouth closes (`sample`
   is nil, the snapshot inactive); `cancel()` closes it at once. Text after that
   starts a new reply. Do not pass `talking: true`: the source feeds the mouth,
   and when it stops the mouth should rest, not take up the head's own talk jaw.
   Its clock is the head reading it, so with no head on screen it does not run.
+- **`lag` is your call:** `TextMouthSource(lag:)` / `TextMouth(lag:)`, in
+  seconds, default 1.5 (`TextMouth.defaultLag`; sized for a chat reply streaming
+  at 10+ words a second: the mouth stays within a phrase of the text and closes
+  about 1.2 s after `finish()`). It trades closeness for letters: a smaller lag
+  follows the text closer and skips more of it; a larger one mouths more and
+  trails further (4 is the pacing Kit 9.67 shipped with). It hurries from 3/8 of it.
+  It must be finite and above 0 (a precondition).
 - **Tokens can split anything:** a word or a two-letter rule. The last letter of
   a chunk waits for the next one.
 - **Send what you want mouthed.** It does not strip markdown or code; symbols
   take no time. Filter first.
 - **Faces stay yours:** `expression` and `listening` compose with it as with a
-  line. It reads no mood from the text. It hands over a mouth and its loudness and no
-  look, so the head's own blinks go on and it glances about on its own. `look:` and
-  `mouth:` are ignored while a source is installed, even an idle one (`isSpeaking`
-  is not observable): to get `look:` back, pass `performance: nil` when your
-  stream is done and the mouth has closed.
+  line. It reads no mood from the text. It hands over a mouth and its loudness,
+  so the head's own blinks go on. `look:` and `mouth:` on the view are ignored
+  while a source is installed, even an idle one (`isSpeaking` is not
+  observable), so steer the eyes through the source: `reply.look = SIMD2(x, y)`
+  (−1…1, + x to the head's right, + y up) rides in every snapshot, idle or
+  speaking; `nil` (the default) is the head's own gaze, glancing about.
 - **Reduce Motion** is a line's rule: the mouth still moves, the head's natural
   motion stops. Add no check of your own.
 - **A caption that keeps up:** `spoken` counts Unicode scalars, so
